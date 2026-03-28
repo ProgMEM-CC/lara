@@ -15,6 +15,7 @@ struct ContentView: View {
     @State private var pid: pid_t = getpid()
     @State private var hasoffsets = haskernproc()
     @State private var showresetalert = false
+    @State private var pacSelfTestResult: Bool? = nil
     
     var body: some View {
         NavigationStack {
@@ -142,7 +143,7 @@ struct ContentView: View {
                     }
                     
                     Section {
-                        if #available(iOS 18.2, *) {
+                        if #unavailable(iOS 18.2) {
                             Button("Respring") {
                                 mgr.respring()
                             }
