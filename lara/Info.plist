@@ -3,6 +3,8 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleIconFile</key>
-	<string>lara</string>
+	<string>assets/lara</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
 </dict>
 </plist>

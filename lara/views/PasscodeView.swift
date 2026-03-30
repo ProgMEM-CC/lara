@@ -1,0 +1,382 @@
+//
+//  PasscodeView.swift
+//  lara
+//
+//  Created by ruter on 29.03.26.
+//
+
+import SwiftUI
+import UIKit
+import PhotosUI
+import UniformTypeIdentifiers
+import ZIPFoundation
+
+struct PasscodeKey: Identifiable {
+    let id: String
+    let digit: String
+    let displayName: String
+    
+    var sourceFilename: String { "\(id).png" }
+}
+
+struct PasscodeView: View {
+    @ObservedObject var mgr: laramgr
+    
+    @State private var selectedTelephony: String = "TelephonyUI-10"
+    @State private var selectedKeys: [String: Data] = [:]
+    @State private var showImagePicker: String?
+    @State private var showFilePicker = false
+    @State private var processing = false
+    @State private var statusMessage: String = ""
+    
+    let telephonyOptions = ["TelephonyUI-10", "TelephonyUI-9", "TelephonyUI-8"]
+    
+    let passcodeKeys: [PasscodeKey] = [
+        PasscodeKey(id: "0", digit: "0", displayName: "0"),
+        PasscodeKey(id: "1", digit: "1", displayName: "1"),
+        PasscodeKey(id: "2", digit: "2", displayName: "2"),
+        PasscodeKey(id: "3", digit: "3", displayName: "3"),
+        PasscodeKey(id: "4", digit: "4", displayName: "4"),
+        PasscodeKey(id: "5", digit: "5", displayName: "5"),
+        PasscodeKey(id: "6", digit: "6", displayName: "6"),
+        PasscodeKey(id: "7", digit: "7", displayName: "7"),
+        PasscodeKey(id: "8", digit: "8", displayName: "8"),
+        PasscodeKey(id: "9", digit: "9", displayName: "9"),
+        PasscodeKey(id: "delete", digit: "delete", displayName: "⌫"),
+        PasscodeKey(id: "cancel", digit: "cancel", displayName: "✕"),
+    ]
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Picker("Telephony Version", selection: $selectedTelephony) {
+                        ForEach(telephonyOptions, id: \.self) { option in
+                            Text(option).tag(option)
+                        }
+                    }
+                } footer: {
+                    Text("Select your iOS version's TelephonyUI folder")
+                }
+                
+                Section("Import Theme") {
+                    Button("Import .passthm / .zip File") {
+                        showFilePicker = true
+                    }
+                }
+                
+                Section("Passcode Key Images") {
+                    LazyVGrid(columns: [
+                        GridItem(.flexible()),
+                        GridItem(.flexible()),
+                        GridItem(.flexible())
+                    ], spacing: 16) {
+                        ForEach(passcodeKeys) { key in
+                            PasscodeKeyButton(
+                                key: key,
+                                imageData: selectedKeys[key.id],
+                                onSelect: {
+                                    showImagePicker = key.id
+                                }
+                            )
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+                
+                Section {
+                    Button("Apply Passcode Theme") {
+                        applyTheme()
+                    }
+                    .disabled(selectedKeys.isEmpty || processing)
+                    
+                    if !statusMessage.isEmpty {
+                        Text(statusMessage)
+                            .foregroundColor(statusMessage.contains("Error") ? .red : .green)
+                    }
+                }
+                
+                Section {
+                    Button("Clear All Keys", role: .destructive) {
+                        selectedKeys.removeAll()
+                    }
+                }
+            }
+            .navigationTitle("Passcode Theme")
+            .sheet(item: $showImagePicker) { keyId in
+                ImagePicker(imageData: $selectedKeys[keyId])
+            }
+            .fileImporter(
+                isPresented: $showFilePicker,
+                allowedContentTypes: [UTType(filenameExtension: "passthm") ?? .zip, .zip],
+                allowsMultipleSelection: false
+            ) { result in
+                handleFileImport(result)
+            }
+        }
+    }
+    
+    func handleFileImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            importPassthmFile(url: url)
+        case .failure(let error):
+            statusMessage = "Error: \(error.localizedDescription)"
+        }
+    }
+    
+    func importPassthmFile(url: URL) {
+        processing = true
+        statusMessage = "Importing theme..."
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            let accessing = url.startAccessingSecurityScopedResource()
+            defer {
+                if accessing {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+            
+            do {
+                let data = try Data(contentsOf: url)
+                let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+                try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                defer {
+                    try? FileManager.default.removeItem(at: tempDir)
+                }
+                
+                let zipPath = tempDir.appendingPathComponent("theme.zip")
+                try data.write(to: zipPath)
+                
+                try FileManager.default.unzipItem(at: zipPath, to: tempDir)
+                
+                let extractedKeys = try findAndExtractImages(from: tempDir)
+                
+                DispatchQueue.main.async {
+                    for (keyId, imageData) in extractedKeys {
+                        selectedKeys[keyId] = imageData
+                    }
+                    processing = false
+                    statusMessage = "Imported \(extractedKeys.count) key(s)"
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    processing = false
+                    statusMessage = "Error: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+    
+    func findAndExtractImages(from directory: URL) throws -> [String: Data] {
+        var result: [String: Data] = [:]
+        let fileManager = FileManager.default
+        
+        guard let enumerator = fileManager.enumerator(at: directory, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) else {
+            return result
+        }
+        
+        for case let fileURL as URL in enumerator {
+            let ext = fileURL.pathExtension.lowercased()
+            guard ext == "png" || ext == "jpg" || ext == "jpeg" else { continue }
+            
+            let filename = fileURL.lastPathComponent.lowercased()
+            let fullPath = fileURL.path.lowercased()
+            
+            if let keyId = matchFilenameToKey(filename) ?? matchFilenameToKey(fullPath) {
+                if let imageData = try? Data(contentsOf: fileURL) {
+                    result[keyId] = imageData
+                }
+            }
+        }
+        
+        return result
+    }
+    
+    func matchFilenameToKey(_ filename: String) -> String? {
+        let lowercased = filename.lowercased()
+        
+        if lowercased.contains("other-2-delete") || lowercased.contains("delete--dark") {
+            return "delete"
+        }
+        if lowercased.contains("other-2-cancel") || lowercased.contains("cancel--dark") || lowercased.contains("other-2-close") {
+            return "cancel"
+        }
+        
+        for i in 0...9 {
+            if lowercased.contains("other-2-\(i)--dark") || lowercased.contains("-\(i)-") || lowercased.contains("/\(i).png") || lowercased.contains("/\(i).jpg") {
+                return String(i)
+            }
+        }
+        
+        return nil
+    }
+    
+    func applyTheme() {
+        guard mgr.vfsready else {
+            statusMessage = "Error: VFS not ready"
+            return
+        }
+        
+        processing = true
+        statusMessage = "Applying theme..."
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard let basePath = resolveTelephonyBasePath() else {
+                DispatchQueue.main.async {
+                    processing = false
+                    statusMessage = "Error: TelephonyUI cache not found"
+                }
+                return
+            }
+            var successCount = 0
+            var failCount = 0
+            
+            for (keyId, imageData) in selectedKeys {
+                let filename = getFilenameForKey(keyId)
+                let targetPath = "\(basePath)/\(filename)"
+                
+                if mgr.vfsoverwritewithdata(target: targetPath, data: imageData) {
+                    successCount += 1
+                    mgr.logmsg("Applied \(filename) to \(targetPath)")
+                } else {
+                    failCount += 1
+                    mgr.logmsg("Failed to apply \(filename)")
+                }
+            }
+            
+            DispatchQueue.main.async {
+                processing = false
+                if failCount == 0 {
+                    statusMessage = "applied \(successCount) key(s)"
+                } else {
+                    statusMessage = "applied \(successCount), failed \(failCount)"
+                }
+            }
+        }
+    }
+
+    func resolveTelephonyBasePath() -> String? {
+        let candidates = [
+            "/var/mobile/Library/Caches/\(selectedTelephony)",
+            "/var/mobile/Library/Caches/com.apple.\(selectedTelephony)",
+            "/var/mobile/Library/Caches/com.apple.\(selectedTelephony.lowercased())",
+            "/var/mobile/Library/Caches/com.apple.TelephonyUI/\(selectedTelephony)",
+            "/var/mobile/Library/Caches/com.apple.telephonyui/\(selectedTelephony)"
+        ]
+
+        for path in candidates {
+            if mgr.vfslistdir(path: path) != nil {
+                mgr.logmsg("TelephonyUI cache: \(path)")
+                return path
+            }
+        }
+
+        mgr.logmsg("TelephonyUI cache not found. Tried: \(candidates.joined(separator: ", "))")
+        return nil
+    }
+    
+    func getFilenameForKey(_ keyId: String) -> String {
+        switch keyId {
+        case "delete": return "other-2-DELETE--dark.png"
+        case "cancel": return "other-2-CANCEL--dark.png"
+        default: return "other-2-\(keyId)--dark.png"
+        }
+    }
+}
+
+struct PasscodeKeyButton: View {
+    let key: PasscodeKey
+    let imageData: Data?
+    let onSelect: () -> Void
+    
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(spacing: 4) {
+                if let data = imageData, let uiImage = UIImage(data: data) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 50, height: 70)
+                } else {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.gray.opacity(0.2))
+                        Text(key.displayName)
+                            .font(.title)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(width: 50, height: 70)
+                }
+                
+                Text(key.displayName)
+                    .font(.caption)
+                    .foregroundColor(.primary)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+extension String: @retroactive Identifiable {
+    public var id: String { self }
+}
+
+struct ImagePicker: UIViewControllerRepresentable {
+    @Binding var imageData: Data?
+    @Environment(\.dismiss) var dismiss
+    
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var config = PHPickerConfiguration()
+        config.filter = .images
+        config.selectionLimit = 1
+        
+        let picker = PHPickerViewController(configuration: config)
+        picker.delegate = context.coordinator
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        let parent: ImagePicker
+        
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+        
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            parent.dismiss()
+            
+            guard let result = results.first else { return }
+            
+            result.itemProvider.loadObject(ofClass: UIImage.self) { [weak self] object, error in
+                guard let image = object as? UIImage else { return }
+                guard let self else { return }
+                
+                let resized = self.resizeImage(image, targetHeight: 202)
+                if let pngData = resized.pngData() {
+                    DispatchQueue.main.async {
+                        self.parent.imageData = pngData
+                    }
+                }
+            }
+        }
+        
+        func resizeImage(_ image: UIImage, targetHeight: CGFloat) -> UIImage {
+            let scale = targetHeight / image.size.height
+            let newWidth = image.size.width * scale
+            let newSize = CGSize(width: newWidth, height: targetHeight)
+            
+            let renderer = UIGraphicsImageRenderer(size: newSize)
+            return renderer.image { _ in
+                image.draw(in: CGRect(origin: .zero, size: newSize))
+            }
+        }
+    }
+}

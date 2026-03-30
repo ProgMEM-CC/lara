@@ -13,6 +13,7 @@ void test(NSString *path);
 bool setkernproc(NSString *path);
 bool dlkerncache(void);
 uint64_t getkernproc(void);
+uint64_t getrootvnode(void);
 bool haskernproc(void);
 NSString *getkerncache(void);
 void clearkerncachedata(void);

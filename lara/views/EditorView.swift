@@ -22,18 +22,34 @@ struct EditorView: View {
     }
 
     var body: some View {
-        ScrollView {
-            TextEditor(text: $mgXML)
-                .font(.system(.body, design: .monospaced))
-                .padding()
+        NavigationStack {
+            List {
+                Section {
+                    ScrollView {
+                        Text(mgXML)
+                            .font(.system(size: 13, design: .monospaced))
+                            .lineSpacing(1)
+                            .frame(height: 250)
+                            .truncationMode(.tail)
+                    }
+                    
+                    NavigationLink {
+                        
+                    } label: {
+                        Text("View")
+                    }
+                } header: {
+                    Text("com.apple.MobileGestalt.plist")
+                }
+            }
+            .navigationTitle("MobileGestalt")
+            .alert("Status", isPresented: .constant(status != nil)) {
+                Button("OK") { status = nil }
+            } message: {
+                Text(status ?? "")
+            }
+            .onAppear(perform: load)
         }
-        .navigationTitle("MobileGestalt")
-        .alert("Status", isPresented: .constant(status != nil)) {
-            Button("OK") { status = nil }
-        } message: {
-            Text(status ?? "")
-        }
-        .onAppear(perform: load)
     }
 
     private func load() {

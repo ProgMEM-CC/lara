@@ -13,26 +13,18 @@ struct ContentView: View {
     @State private var uid: uid_t = getuid()
     @State private var pid: pid_t = getpid()
     @State private var hasoffsets = haskernproc()
-    @State private var showresetalert = false
-    @State private var downloadingkernelcache = false
+    @State private var showsettings = false
     
     var body: some View {
         NavigationStack {
             List {
                 if !hasoffsets {
-                    Section("Kernelcache") {
-                        Button("Download Kernelcache") {
-                            guard !downloadingkernelcache else { return }
-                            downloadingkernelcache = true
-                            DispatchQueue.global(qos: .userInitiated).async {
-                                let ok = dlkerncache()
-                                DispatchQueue.main.async {
-                                    hasoffsets = ok
-                                    downloadingkernelcache = false
-                                }
-                            }
+                    Section("Setup") {
+                        Text("Kernelcache offsets are missing. Download them in Settings.")
+                            .foregroundColor(.secondary)
+                        Button("Open Settings") {
+                            showsettings = true
                         }
-                        .disabled(downloadingkernelcache)
                     }
                 } else {
                     Section("Kernel Read Write") {
@@ -41,8 +33,12 @@ struct ContentView: View {
                         } label: {
                             if mgr.dsrunning {
                                 HStack {
-                                    ProgressView()
+                                    ProgressView(value: mgr.dsprogress)
+                                        .progressViewStyle(.circular)
+                                        .frame(width: 18, height: 18)
                                     Text("Running...")
+                                    Spacer()
+                                    Text("\(Int(mgr.dsprogress * 100))%")
                                 }
                             } else {
                                 if mgr.dsready {
@@ -51,6 +47,13 @@ struct ContentView: View {
                                         Spacer()
                                         Image(systemName: "checkmark.circle")
                                             .foregroundColor(.green)
+                                    }
+                                } else if mgr.dsattempted && mgr.dsfailed {
+                                    HStack {
+                                        Text("Exploit Failed")
+                                        Spacer()
+                                        Image(systemName: "xmark.circle")
+                                            .foregroundColor(.red)
                                     }
                                 } else {
                                     Text("Run Exploit")
@@ -62,6 +65,14 @@ struct ContentView: View {
                         
                         HStack {
                             Text("kernproc:")
+                            Spacer()
+                            Text(String(format: "0x%llx", getrootvnode()))
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        HStack {
+                            Text("rootvnode:")
                             Spacer()
                             Text(String(format: "0x%llx", getkernproc()))
                                 .font(.system(.body, design: .monospaced))
@@ -91,8 +102,26 @@ struct ContentView: View {
                         Button {
                             mgr.vfsinit()
                         } label: {
-                            if !mgr.vfsready {
-                                Text("Initialise VFS")
+                            if mgr.vfsrunning {
+                                HStack {
+                                    ProgressView(value: mgr.vfsprogress)
+                                        .progressViewStyle(.circular)
+                                        .frame(width: 18, height: 18)
+                                    Text("Initialising VFS...")
+                                    Spacer()
+                                    Text("\(Int(mgr.vfsprogress * 100))%")
+                                }
+                            } else if !mgr.vfsready {
+                                if mgr.vfsattempted && mgr.vfsfailed {
+                                    HStack {
+                                        Text("VFS Init Failed")
+                                        Spacer()
+                                        Image(systemName: "xmark.circle")
+                                            .foregroundColor(.red)
+                                    }
+                                } else {
+                                    Text("Initialise VFS")
+                                }
                             } else {
                                 HStack {
                                     Text("Initialised VFS")
@@ -102,14 +131,13 @@ struct ContentView: View {
                                 }
                             }
                         }
-                        .disabled(!mgr.dsready || mgr.vfsready)
+                        .disabled(!mgr.dsready || mgr.vfsready || mgr.vfsrunning)
                         
                         if mgr.vfsready {
                             NavigationLink("Font Overwrite") {
                                 FontPicker(mgr: mgr)
                             }
-                            
-                            NavigationLink("DirtyZero ?") {
+                            NavigationLink("DirtyZero (Broken)") {
                                 ZeroView(mgr: mgr)
                             }
                             
@@ -118,6 +146,14 @@ struct ContentView: View {
                                     AppsView(mgr: mgr)
                                 }
                                 
+                                NavigationLink("Passcode Theme") {
+                                    PasscodeView(mgr: mgr)
+                                }
+                                
+                                NavigationLink("Unblacklist") {
+                                    WhitelistView()
+                                }
+
                                 NavigationLink("MobileGestalt") {
                                     EditorView()
                                 }
@@ -170,127 +206,25 @@ struct ContentView: View {
                             mgr.panic()
                         }
                         .disabled(!mgr.dsready)
-                        
-                        Button("gettask") {
-                            ourtask(ourproc())
-                        }
-                        .disabled(!mgr.dsready)
                     } header: {
                         Text("Other")
                     }
                 }
                 
-                Section {
-                    HStack(alignment: .top) {
-                        AsyncImage(url: URL(string: "https://github.com/rooootdev.png")) { image in
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        } placeholder: {
-                            ProgressView()
-                        }
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
-                        
-                        VStack(alignment: .leading) {
-                            Text("roooot")
-                                .font(.headline)
-                            
-                            Text("Main Developer")
-                                .font(.subheadline)
-                                .foregroundColor(Color.secondary)
-                        }
-                        
-                        Spacer()
-                    }
-                    .onTapGesture {
-                        if let url = URL(string: "https://github.com/rooootdev"),
-                           UIApplication.shared.canOpenURL(url) {
-                            UIApplication.shared.open(url)
-                        }
-                    }
-                    
-                    HStack(alignment: .top) {
-                        AsyncImage(url: URL(string: "https://github.com/AppInstalleriOSGH.png")) { image in
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        } placeholder: {
-                            ProgressView()
-                        }
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
-                        
-                        VStack(alignment: .leading) {
-                            Text("AppInstaller iOS")
-                                .font(.headline)
-                            
-                            Text("Helped me with offsets and other stuff. This project wouldnt have been possible without him!")
-                                .font(.subheadline)
-                                .foregroundColor(Color.secondary)
-                        }
-                        
-                        Spacer()
-                    }
-                    .onTapGesture {
-                        if let url = URL(string: "https://github.com/AppInstalleriOSGH"),
-                           UIApplication.shared.canOpenURL(url) {
-                            UIApplication.shared.open(url)
-                        }
-                    }
-                    
-                    HStack(alignment: .top) {
-                        AsyncImage(url: URL(string: "https://github.com/jailbreakdotparty.png")) { image in
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        } placeholder: {
-                            ProgressView()
-                        }
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
-                        
-                        VStack(alignment: .leading) {
-                            Text("jailbreak.party")
-                                .font(.headline)
-                            
-                            Text("All of the DirtyZero tweaks and emotional support.")
-                                .font(.subheadline)
-                                .foregroundColor(Color.secondary)
-                        }
-                        
-                        Spacer()
-                    }
-                    .onTapGesture {
-                        if let url = URL(string: "https://github.com/jailbreakdotparty"),
-                           UIApplication.shared.canOpenURL(url) {
-                            UIApplication.shared.open(url)
-                        }
-                    }
-                } header: {
-                    Text("Credits")
-                }
             }
             .navigationTitle("lara")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
-                        showresetalert = true
+                        showsettings = true
                     } label: {
-                        Image(systemName: "trash")
-                            .foregroundColor(.red)
+                        Image(systemName: "gear")
                     }
                 }
             }
         }
-        .alert("Clear Kernelcache Data?", isPresented: $showresetalert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
-                clearkerncachedata()
-                hasoffsets = haskernproc()
-            }
-        } message: {
-            Text("This will delete the downloaded kernelcache and remove saved offsets.")
+        .sheet(isPresented: $showsettings) {
+            SettingsView(hasoffsets: $hasoffsets)
         }
     }
 }

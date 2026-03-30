@@ -20,7 +20,7 @@ let globallogger = Logger()
 class Logger: ObservableObject {
     @Published var logs: [String] = []
 
-    private var lastMessage: String?
+    private var lastmessage: String?
     private var repeatCount = 0
     private var lastwasdivider = false
     private var pendingdivider = false
@@ -30,6 +30,7 @@ class Logger: ObservableObject {
     private var ogstderr: Int32 = -1
     private var logfileurl: URL?
     private var logfilehandle: FileHandle?
+    private let nobullshitkey = "loggernobullshit"
     private let ignoredlogsubstrings = [
         "Faulty glyph",
         "outline detected - replacing with a space/null glyph",
@@ -88,6 +89,7 @@ class Logger: ObservableObject {
         "Total Latency:",
         "Timestamp type:",
         "lara[",
+        "};",
     ]
 
     init() {
@@ -96,24 +98,32 @@ class Logger: ObservableObject {
 
     func log(_ message: String) {
         DispatchQueue.main.async {
-            if self.pendingdivider {
+            let dividersEnabled = !UserDefaults.standard.bool(forKey: self.nobullshitkey)
+            if dividersEnabled && self.pendingdivider {
                 self.divider()
                 self.pendingdivider = false
+            } else if !dividersEnabled {
+                self.pendingdivider = false
+                self.lastwasdivider = false
             }
 
-            if message == self.lastMessage {
+            if message == self.lastmessage {
                 self.repeatCount += 1
                 if let lastIndex = self.logs.indices.last {
                     self.logs[lastIndex] = "\(message) (\(self.repeatCount + 1)x)"
                 }
             } else {
                 self.repeatCount = 0
-                if self.lastwasdivider || self.logs.isEmpty {
-                    self.logs.append(message)
+                if dividersEnabled {
+                    if self.lastwasdivider || self.logs.isEmpty {
+                        self.logs.append(message)
+                    } else {
+                        self.logs[self.logs.count - 1] += "\n" + message
+                    }
                 } else {
-                    self.logs[self.logs.count - 1] += "\n" + message
+                    self.logs.append(message)
                 }
-                self.lastMessage = message
+                self.lastmessage = message
             }
 
             self.lastwasdivider = false
@@ -124,14 +134,19 @@ class Logger: ObservableObject {
     }
 
     func divider() {
+        if UserDefaults.standard.bool(forKey: nobullshitkey) { return }
         DispatchQueue.main.async {
             self.lastwasdivider = true
-            self.lastMessage = nil
+            self.lastmessage = nil
             self.repeatCount = 0
         }
     }
     
     func enclosedlog(_ message: String) {
+        if UserDefaults.standard.bool(forKey: nobullshitkey) {
+            log(message)
+            return
+        }
         DispatchQueue.main.async {
             if !self.lastwasdivider && !self.logs.isEmpty {
                 self.divider()
@@ -149,6 +164,7 @@ class Logger: ObservableObject {
     }
     
     func flushdivider() {
+        if UserDefaults.standard.bool(forKey: nobullshitkey) { return }
         DispatchQueue.main.async {
             if self.pendingdivider {
                 self.divider()
@@ -162,6 +178,8 @@ class Logger: ObservableObject {
             self.logs.removeAll()
             self.lastwasdivider = false
             self.pendingdivider = false
+            self.lastmessage = nil
+            self.repeatCount = 0
         }
         if let url = logfileurl {
             try? logfilehandle?.close()
@@ -326,24 +344,36 @@ class Logger: ObservableObject {
 
 struct LogsView: View {
     @ObservedObject var logger: Logger
+    
+    private let nobullshitkey = "loggernobullshit"
 
     var body: some View {
         NavigationStack {
             List {
-                ForEach(Array(logger.logs.enumerated()), id: \.offset) { _, log in
-                    Text(log)
+                if UserDefaults.standard.bool(forKey: nobullshitkey) {
+                    let combined = logger.logs.joined(separator: "\n")
+                    Text(combined)
                         .font(.system(size: 13, design: .monospaced))
                         .lineSpacing(1)
                         .onTapGesture {
-                            UIPasteboard.general.string = log
+                            UIPasteboard.general.string = combined
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         }
+                } else {
+                    ForEach(Array(logger.logs.enumerated()), id: \.offset) { _, log in
+                        Text(log)
+                            .font(.system(size: 13, design: .monospaced))
+                            .lineSpacing(1)
+                            .onTapGesture {
+                                UIPasteboard.general.string = log
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            }
+                    }
                 }
             }
             .navigationTitle("Logs")
             .toolbar {
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    
                     Button {
                         let allLogs = logger.logs.joined(separator: "\n\n")
                         UIPasteboard.general.string = allLogs

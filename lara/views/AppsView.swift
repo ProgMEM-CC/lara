@@ -78,7 +78,6 @@ struct AppsView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Reload") {
-                    // future reload logic
                 }
             }
         }
