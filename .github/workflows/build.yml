@@ -9,12 +9,10 @@ jobs:
   build-and-release:
     runs-on: macos-latest
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GH_PAT }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
     
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
@@ -33,11 +31,6 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             build
-            
-      - name: auth
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "authed"
 
       - name: handle archival
         id: handle_release
@@ -47,7 +40,6 @@ jobs:
             SHA=$(gh release view "$LATEST" --json targetCommitish -q '.targetCommitish')
             gh release create "${LATEST}-old" --target "$SHA" --notes "Old release tag"
             gh release delete "$LATEST" --yes
-          fi
 
       - name: new release
         run: |
