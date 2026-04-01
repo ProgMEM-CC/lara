@@ -150,7 +150,7 @@ struct ContentView: View {
                                 ZeroView(mgr: mgr)
                             }
 
-                            if !showfmintabs {
+                            if showfmintabs {
                                 NavigationLink("File Manager") {
                                     SantanderView(startPath: "/")
                                 }
@@ -171,10 +171,6 @@ struct ContentView: View {
 
                                 NavigationLink("MobileGestalt") {
                                     EditorView()
-                                }
-
-                                NavigationLink("Installed App List") {
-                                    AppsView(mgr: mgr)
                                 }
                             }
                         }
