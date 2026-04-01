@@ -10,6 +10,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @AppStorage("showfmintabs") private var showfmintabs: Bool = true
+    @AppStorage("betaFeaturesEnabled") private var betaFeaturesEnabled: Bool = false
     @ObservedObject private var mgr = laramgr.shared
     @State private var uid: uid_t = getuid()
     @State private var pid: pid_t = getpid()
@@ -155,7 +156,7 @@ struct ContentView: View {
                                 }
                             }
                             
-                            if 1 == 2 {
+                            if betaFeaturesEnabled {
                                 NavigationLink("3 App Bypass") {
                                     AppsView(mgr: mgr)
                                 }
@@ -170,6 +171,10 @@ struct ContentView: View {
 
                                 NavigationLink("MobileGestalt") {
                                     EditorView()
+                                }
+
+                                NavigationLink("Installed App List") {
+                                    AppsView(mgr: mgr)
                                 }
                             }
                         }
