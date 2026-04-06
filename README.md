@@ -50,6 +50,7 @@ If lara doesnt work on your device, and you want to help the project, please als
 - MobileGestalt Editor
 
 ## known issues:
+- wont work on M5, A19 and A19 Pro due to MTE
 - on iOS 17.x, the kernel may panic when lara is closed from the app switcher.
 - downloading OTA updates does not work.
 - dirtyzero does not work.
