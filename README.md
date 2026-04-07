@@ -74,3 +74,4 @@ respringing is needed to apply springboard changes such as font changes.
 - opa334 for the kernel exploit poc, ChOma and XPF
 - AppInstaller iOS for help with offsets
 - AlfieCG for libgrabkernel2
+- Everyone who contributed!
