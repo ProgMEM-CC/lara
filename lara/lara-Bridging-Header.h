@@ -11,5 +11,6 @@
 #import "apfs.h"
 #import "vfs.h"
 #import "sbx.h"
+#import "VarCleanBridge.h"
 
 void test(NSString *path);

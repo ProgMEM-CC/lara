@@ -212,6 +212,10 @@ struct ContentView: View {
                                 NavigationLink("3 App Bypass") {
                                     AppsView(mgr: mgr)
                                 }
+
+                                NavigationLink("VarClean") {
+                                    VarCleanView()
+                                }
                                 
                                 NavigationLink("Unblacklist (Broken?)") {
                                     WhitelistView()
@@ -329,6 +333,10 @@ struct ContentView: View {
                                 
                                 NavigationLink("3 App Bypass") {
                                     AppsView(mgr: mgr)
+                                }
+
+                                NavigationLink("VarClean") {
+                                    VarCleanView()
                                 }
                                 
                                 if 1 == 2 {
