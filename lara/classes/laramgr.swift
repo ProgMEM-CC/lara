@@ -434,14 +434,7 @@ final class laramgr: ObservableObject {
         return true
     }
     
-    // MARK: - RemoteCall
-    
-    /// Initialize remote call on a target process
-    /// - Parameters:
-    ///   - process: The process name to target
-    ///   - useMigBypass: Whether to use MIG filter bypass (not yet implemented)
-    ///   - completion: Completion handler with success status
-    func initRemoteCall(process: String, useMigBypass: Bool = false, completion: ((Bool) -> Void)? = nil) {
+    func rcinit(process: String, migbypass: Bool = false, completion: ((Bool) -> Void)? = nil) {
         guard dsready, !remotecallrunning else {
             completion?(false)
             return
@@ -451,7 +444,7 @@ final class laramgr: ObservableObject {
         logmsg("initializing remote call on \(process)...")
         
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let result = init_remote_call(process, useMigBypass)
+            let result = init_remote_call(process, migbypass)
             
             DispatchQueue.main.async {
                 guard let self = self else { return }
@@ -467,8 +460,7 @@ final class laramgr: ObservableObject {
         }
     }
     
-    /// Destroy the current remote call session
-    func destroyRemoteCall() {
+    func rcdestroy() {
         guard remotecallrunning else { return }
         
         logmsg("destroying remote call session...")
@@ -483,25 +475,23 @@ final class laramgr: ObservableObject {
         }
     }
     
-    /// Execute a remote function call
-    /// - Parameters:
-    ///   - name: The function name to call
-    ///   - args: Up to 8 arguments (x0-x7)
-    ///   - timeout: Timeout in milliseconds
-    /// - Returns: The return value from the remote call
-    func doRemoteCall(name: String, args: [UInt64] = [], timeout: Int32 = 100) -> UInt64 {
+    //  params:
+    //  - name: function to call
+    //  - args: up to 8 args (x0-x7)
+    //  - timeout: timeout in ms
+    //  ret: return value from rc
+    func rccall(name: String, args: [UInt64] = [], timeout: Int32 = 100) -> UInt64 {
         guard remotecallrunning else { return 0 }
         
-        // Pad args to 8 elements
-        var paddedArgs = args
-        while paddedArgs.count < 8 {
-            paddedArgs.append(0)
+        var padded = args
+        while padded.count < 8 {
+            padded.append(0)
         }
         
         return do_remote_call_stable(
             timeout, name,
-            paddedArgs[0], paddedArgs[1], paddedArgs[2], paddedArgs[3],
-            paddedArgs[4], paddedArgs[5], paddedArgs[6], paddedArgs[7]
+            padded[0], padded[1], padded[2], padded[3],
+            padded[4], padded[5], padded[6], padded[7]
         )
     }
 }
