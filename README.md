@@ -31,9 +31,23 @@
 ## support
 lara will at its absolute best only ever support versions up to iOS 26.0.1/iOS 18.7.1. the exploit was patched after those versions.
 
-ANY ISSUES THAT INVOLVE LARA NOT WORKING ON UNSUPPORTED VERSIONS WILL BE CLOSED IMMEDIATLEY. 
+currently tested on iOS 17.1 - 26.0.1, up to iOS 18.7.1 only on the 18.7 series.
 
-currently tested on iOS 17.1.1 - 26.0.1.
+## compatibility
+
+| series | version / chip | status |
+| :--- | :--- | :--- |
+| **iOS 17** | all versions | supported |
+| **iOS 18** | 18.0 — 18.7.1 | supported |
+| **iOS 26.0/26.0.1** | 26.0 — 26.0.1 **only** | supported |
+| **iOS 26.1+** | 26.1+ | **patched** |
+| **M-series chips** | M1, M2, M3, etc...  | **unsupported** |
+
+> [!CAUTION]
+> if you are on an M-series device or any iOS version higher than 26.0.1, the app will crash on launch. this isn't a bug, lara just doesnt support those devices yet.
+> 
+> **ANY ISSUES THAT INVOLVE LARA NOT WORKING ON UNSUPPORTED VERSIONS WILL BE CLOSED IMMEDIATELY.**
+
 If you run lara on your device, and it ends up working, please contact me on [discord](https://discord.gg/gw8PcRF3Jr) and tell me:
 1. your device
 2. your iOS version

@@ -397,10 +397,10 @@ struct ContentView: View {
             SettingsView(mgr: mgr, hasoffsets: $hasoffsets)
         }
         .onAppear {
-            refreshSelectedMethod()
+            refreshselectedmethod()
         }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
-            refreshSelectedMethod()
+            refreshselectedmethod()
         }
     }
 
@@ -417,7 +417,7 @@ struct ContentView: View {
         }
     }
 
-    private func refreshSelectedMethod() {
+    private func refreshselectedmethod() {
         if let raw = UserDefaults.standard.string(forKey: "selectedmethod"),
            let m = method(rawValue: raw) {
             selectedmethod = m
