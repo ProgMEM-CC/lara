@@ -84,7 +84,7 @@ kernelcache download fix:
 2. Extract the archive.
 3. Open Terminal.
 4. Navigate to the extracted folder:<br>
-`cd /path/to/ipsw_3.1.671_macOS_universal/`
+`cd /path/to/ipsw_3.1.671_something_something/`
 5. Extract the kernel:
 ./ipsw extract --kernel <drag your ipsw here>
 6. Get the kernelcache file.
