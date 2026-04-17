@@ -365,10 +365,11 @@ struct ContentView: View {
                         }
                     }
                     
+                    #if !DISABLE_REMOTECALL
                     Section {
                         Button("Init RemoteCall") {
                             mgr.logmsg("T")
-                            mgr.rcinit(process: "springboard", migbypass: false) { success in
+                            mgr.rcinit(process: "SpringBoard", migbypass: false) { success in
                                 if success {
                                     mgr.logmsg("rc init succeeded!")
                                     let pid = mgr.rccall(name: "getpid")
@@ -388,8 +389,9 @@ struct ContentView: View {
                     } header: {
                         Text("RemoteCall")
                     } footer: {
-                        Text("Broken. Do not create issues or ask for support regarding this feature.")
+                        Text("hopefully not broken anymore, but still useless. -baconmania")
                     }
+                    #endif
                     
                     Section {
                         if mgr.dsready {
